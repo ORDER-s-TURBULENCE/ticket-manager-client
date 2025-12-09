@@ -1,13 +1,13 @@
 import { createRootRoute, createRoute, createRouter} from "@tanstack/react-router"
-import { Hello } from "../App"
 import { UserForm } from "../pages/user/form"
+import { Index } from "../pages"
 
 export const rootRoute = createRootRoute({})
 
 const indexRoute = createRoute({
 getParentRoute: () => rootRoute,
   path: "/",
-  component: Hello,
+  component: Index,
 })
 
 const userFormRoute = createRoute({
