@@ -1,94 +1,78 @@
 "use client";
 
 import {
-  Field,
   VStack,
   Input,
   NumberInput,
   Select,
   Button,
-  createListCollection,
   Portal,
 } from "@chakra-ui/react";
-import z from "zod";
+import { useForm, type SubmitHandler } from "react-hook-form";
+import { useMutation } from "@tanstack/react-query";
+import { postFormData } from "../../api/form";
+import { useParams } from "@tanstack/react-router";
+import type { components } from "../../types/api";
+import FormField from "../../components/ui/FormField";
+import { formSchema, type FormSchemaType } from "../../schemas/formSchema";
+import { paymentMethods } from "../../constants/paymentMethods";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, type SubmitErrorHandler } from "react-hook-form";
 
-const formSchema = z.object({
-  name: z.string().min(1, "名前は必須です"),
-  email: z.email("有効なメールアドレスを入力してください"),
-  numberOfSeatTickets: z
-    .number()
-    .min(1, "座席チケット枚数は1以上である必要があります"),
-  numberOfGoodsTickets: z
-    .number()
-    .min(0, "グッズチケット枚数は0以上である必要があります"),
-  paymentMethod: z.string().min(1, "支払い方法は必須です"),
-  remark: z.string().optional(),
-});
-
-type FormData = z.infer<typeof formSchema>;
-
-const paymentMethods = createListCollection({
-    items:[
-  { value: "Square", label: "Square" },
-  { value: "bank_transfer", label: "銀行振込" },
-  { value: "cash", label: "現金" },
-]});
-
-const FormField = ({
-  label,
-  isRequired = false,
-  children,
-  errorMessage,
-  helperText,
-}: {
-  label: string;
-  isRequired?: boolean;
-  children: React.ReactNode;
-  errorMessage?: string;
-  helperText?: string;
-}) => (
-  <Field.Root required={isRequired} invalid={!!errorMessage}>
-    <Field.Label>
-      {label}  <Field.RequiredIndicator />
-    </Field.Label>
-    {helperText && <Field.HelperText>{helperText}</Field.HelperText>}
-    {children}
-    <Field.ErrorText>{errorMessage}</Field.ErrorText>
-  </Field.Root>
-);
+type FormInput = components['schemas']['FormInput'];
+type FormType = FormInput['type'];
 
 export const UserForm = () => {
-  const {
-    register,
-    setValue,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormData>({
-    defaultValues: {
-        name: "",
-        email: "",
-        numberOfSeatTickets: 1,
-        numberOfGoodsTickets: 0,
-        paymentMethod: "",
-        remark: "",
-    },
-    resolver: zodResolver(formSchema),
-  });
+    const {
+        register,
+        setValue,
+        handleSubmit,
+        formState: { errors },
+    } = useForm<FormSchemaType>({
+        defaultValues: {
+            name: "",
+            email: "",
+            number_of_seat_tickets: 1,
+            number_of_goods_tickets: 0,
+            payment_method: undefined,
+            remarks: "",
+        },
+        resolver: zodResolver(formSchema),
+    });
 
-    const onSubmit = (data: FormData) => {
-        console.log("Form Data Submitted:");
-        console.log(data);
+    const mutation = useMutation<
+        { message: string },
+        Error,
+        FormInput
+    >({
+        mutationFn: postFormData,
+    });
+
+    const validTypes: FormType[] = ["staff", "crowdfunding", "preorder", "onTheDay"];
+    const { movie_id, type } = useParams({ from: '/user/form/$movie_id/$type' });
+    if (!movie_id || !type || !validTypes.includes(type)) {
+        return <div>Invalid URL parameters.</div>;
     }
 
-    const onError: SubmitErrorHandler<FormData> = (errors) => {
-        console.log("Form Errors:");
-        console.log(errors);
+    const onSubmit: SubmitHandler<FormSchemaType> = (data) => {
+        const mutatePayload: FormInput = {
+            ...data,
+            movie_id: movie_id,
+            type: type,
+            is_verified: false,
+            payment_status: "pending",
+        };
+        mutation.mutate(mutatePayload, {
+            onSuccess: (response) => {
+                console.log("データ送信に成功しました。message:", response.message);
+            },
+            onError: (error) => {
+                console.error("データ送信中にエラーが発生しました:", error);
+            },
+        });
     };
 
     return (
-        <form onSubmit={handleSubmit(onSubmit, onError)}>
+        <form onSubmit={handleSubmit(onSubmit)}>
             <VStack gap="5" width="full">
 
                 <FormField
@@ -118,13 +102,13 @@ export const UserForm = () => {
                 <FormField
                     label="座席チケット枚数"
                     isRequired={true}
-                    errorMessage={errors.numberOfSeatTickets?.message}
+                    errorMessage={errors.number_of_seat_tickets?.message}
                     helperText="映画の鑑賞に必要なチケットです"
                 >
                     <NumberInput.Root defaultValue="1" width="full">
                         <NumberInput.Control />
                         <NumberInput.Input 
-                            {...register("numberOfSeatTickets", {
+                            {...register("number_of_seat_tickets", {
                                 valueAsNumber: true,
                             })}
                         />
@@ -134,12 +118,12 @@ export const UserForm = () => {
                 <FormField
                     label="グッズチケット枚数"
                     isRequired={true}
-                    errorMessage={errors.numberOfGoodsTickets?.message}
+                    errorMessage={errors.number_of_goods_tickets?.message}
                 >
                     <NumberInput.Root defaultValue="0" width="full">
                         <NumberInput.Control />
                         <NumberInput.Input 
-                            {...register("numberOfGoodsTickets", {
+                            {...register("number_of_goods_tickets", {
                                 valueAsNumber: true,
                             })}
                         />
@@ -149,13 +133,13 @@ export const UserForm = () => {
                 <FormField
                     label="支払い方法"
                     isRequired={true}
-                    errorMessage={errors.paymentMethod?.message}
+                    errorMessage={errors.payment_method?.message}
                 >
                     <Select.Root 
                         width="full" 
                         collection={paymentMethods} 
-                        onValueChange={(e) => setValue("paymentMethod", e.value[0])}
-                        >
+                        onValueChange={(e) => setValue("payment_method", e.value[0] as FormInput['payment_method'])}
+                    >
                         <Select.Control>
                             <Select.Trigger>
                                 <Select.ValueText placeholder="未選択"/>
@@ -182,11 +166,11 @@ export const UserForm = () => {
                 <FormField
                     label="備考"
                     isRequired={false}
-                    errorMessage={errors.remark?.message}
+                    errorMessage={errors.remarks?.message}
                 >
                     <Input
                         placeholder="配慮事項あればご記入ください"
-                        {...register("remark")}
+                        {...register("remarks")}
                         aria-label="備考"
                     />
                 </FormField>

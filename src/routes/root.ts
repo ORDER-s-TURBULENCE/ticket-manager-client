@@ -12,7 +12,7 @@ getParentRoute: () => rootRoute,
 
 const userFormRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/user/form",
+  path: "/user/form/$movie_id/$type",
   component: UserForm,
 })
 
