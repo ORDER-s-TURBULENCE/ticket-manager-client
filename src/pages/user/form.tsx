@@ -1,72 +1,25 @@
 "use client";
 
 import {
-  Field,
   VStack,
   Input,
   NumberInput,
   Select,
   Button,
-  createListCollection,
   Portal,
 } from "@chakra-ui/react";
-import z from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, type SubmitHandler } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { postFormData } from "../../api/form";
 import { useParams } from "@tanstack/react-router";
 import type { components } from "../../types/api";
+import FormField from "../../components/ui/FormField";
+import { formSchema, type FormSchemaType } from "../../schemas/formSchema";
+import { paymentMethods } from "../../constants/paymentMethods";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 type FormInput = components['schemas']['FormInput'];
 type FormType = FormInput['type'];
-
-const formSchema = z.object({
-    name: z.string().min(1, "名前は必須です"),
-    email: z.email("有効なメールアドレスを入力してください"),
-    number_of_seat_tickets: z
-        .number()
-        .min(1, "座席チケット枚数は1以上である必要があります"),
-    number_of_goods_tickets: z
-        .number()
-        .min(0, "グッズチケット枚数は0以上である必要があります"),
-    payment_method: z.enum(["square", "bank_transfer", "cash"], {
-        message: "有効な支払い方法を選択してください",
-    }),
-    remarks: z.string().optional(),
-    });
-type FormSchemaType = z.infer<typeof formSchema>;
-
-const paymentMethods = createListCollection({
-    items:[
-        { value: "square", label: "Square" },
-        { value: "bank_transfer", label: "銀行振込" },
-        { value: "cash", label: "現金" },
-    ]
-});
-
-const FormField = ({
-    label,
-    isRequired = false,
-    children,
-    errorMessage,
-    helperText,
-}: {
-    label: string;
-    isRequired?: boolean;
-    children: React.ReactNode;
-    errorMessage?: string;
-    helperText?: string;
-}) => (
-    <Field.Root required={isRequired} invalid={!!errorMessage}>
-        <Field.Label>
-        {label}  <Field.RequiredIndicator />
-        </Field.Label>
-        {helperText && <Field.HelperText>{helperText}</Field.HelperText>}
-        {children}
-        <Field.ErrorText>{errorMessage}</Field.ErrorText>
-    </Field.Root>
-);
 
 export const UserForm = () => {
     const {
@@ -100,7 +53,7 @@ export const UserForm = () => {
         return <div>Invalid URL parameters.</div>;
     }
 
-    const onSubmit = (data: FormSchemaType) => {
+    const onSubmit: SubmitHandler<FormSchemaType> = (data) => {
         const mutatePayload: FormInput = {
             ...data,
             movie_id: movie_id,
